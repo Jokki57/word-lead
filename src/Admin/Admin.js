@@ -1,5 +1,6 @@
 import React, { PureComponent } from 'react';
 import RaisedButton from 'material-ui/RaisedButton';
+import FlatButton from 'material-ui/FlatButton';
 import {
   Table,
   TableBody,
@@ -9,7 +10,12 @@ import {
   TableRowColumn,
 } from 'material-ui/Table';
 import TextField from 'material-ui/TextField';
-import _ from 'lodash';
+import EditorModeEditIcon from 'material-ui/svg-icons/editor/mode-edit';
+import ActionDoneIcon from 'material-ui/svg-icons/action/done';
+import ActionDeleteIcon from 'material-ui/svg-icons/action/delete';
+import Paper from 'material-ui/Paper';
+import { saveEntries, loadEntries } from '../utils/saveLoadEntries';
+import store from '../utils/store';
 
 import './Admin.css';
 
@@ -18,57 +24,154 @@ class Admin extends PureComponent {
     super(props);
 
     this.state = {
-      entries: [{
-        origin: 'asdasd',
-        translation: 'asdasdas'
-      }],
+      entries: [],
     };
-    this.originRef = React.createRef();
-    this.translationRef = React.createRef();
+    this.tempEditingValues = {};
     this.originValue = '';
     this.translationValue = '';
   }
 
-  componentDidUpdate(prevProps, { entries: prevEntries }) {
-
+  componentDidMount() {
+    const processEntries = (entries) => {
+      const stateEnties = [];
+      if (Array.isArray(entries)) {
+        entries.forEach(({ origin, translation }) => {
+          stateEnties.push({
+            isEditing: false,
+            origin,
+            translation,
+          })
+        })
+      }
+      this.setState({ entries: stateEnties });
+    };
+    const ent = store.getValue('entries');
+    if (!ent) {
+      loadEntries().then(processEntries);
+    } else {
+      processEntries(ent);
+    }
   }
 
-  onOriginInputChanged = (event, newValue) => {
-    console.log(newValue);
-    this.originValue = newValue;
+  componentDidUpdate(prevProps, { entries: prevEntries }) {
+    // const { entries } = this.state;
+    // if (!_.isEqual(prevEntries, entries)) {
+    //   saveEntries(entries);
+    // }
+  }
+
+  onEditButtonClick = (index) => () => {
+    const entries = [
+      ...this.state.entries,
+    ];
+    entries[index].isEditing = !entries[index].isEditing;
+    if (!entries[index].isEditing) {
+      if (this.tempEditingValues[index].origin) {
+        entries[index].origin = this.tempEditingValues[index].origin;
+      }
+      if (this.tempEditingValues[index].translation) {
+        entries[index].translation = this.tempEditingValues[index].translation;
+      }
+    }
+
+    this.setState({
+      entries,
+    }, () => {
+      this.save();
+    })
   };
-  onTranslationInputChanged = (event, newValue) => {
+
+  onRemoveButtonClick = (index) => () => {
+    const entries = [
+      ...this.state.entries,
+    ];
+    entries.splice(index, 1);
+    delete this.tempEditingValues[index];
+    this.setState({
+      entries,
+    }, () => {
+      this.save();
+    })
+  };
+
+  onAddOriginInputChanged = (event, newValue) => {
     console.log(newValue);
-    this.translationValue = newValue;
+    this.originValueAdd = newValue;
+  };
+  onAddTranslationInputChanged = (event, newValue) => {
+    console.log(newValue);
+    this.translationValueAdd = newValue;
+  };
+
+  onEditOriginInputChanged = (index) => (event, newValue) => {
+    this.tempEditingValues[index] = {
+      ...this.tempEditingValues[index],
+      origin: newValue,
+    };
+  };
+  onEditTranslationInputChanged = (index) => (event, newValue) => {
+    this.tempEditingValues[index] = {
+      ...this.tempEditingValues[index],
+      translation: newValue,
+    };
   };
 
   onAddEntry = () => {
-    if (this.originRef.current && this.translationRef.current) {
-      console.log(this.originRef.current);
-      this.setState({
-        entries: [
-          ...this.state.entries,
-          { origin: this.originValue, translation: this.translationValue }
-        ]
-      });
-    }
+    this.setState({
+      entries: [
+        ...this.state.entries,
+        {
+          origin: this.originValueAdd,
+          translation: this.translationValueAdd,
+          isEditing: false,
+        }
+      ]
+    }, () => {
+      this.save();
+    });
+  };
+
+  save = () => {
+    const { entries } = this.state;
+    const entriesToSave = [];
+    entries.forEach(({ origin, translation }) => {
+      entriesToSave.push({ origin, translation });
+    });
+    saveEntries(entriesToSave)
   };
 
   renderEntries = () => {
     const { entries } = this.state;
-    return entries.map((entry, index) => (
-      <TableRow key={index}>
-        <TableRowColumn>{index}</TableRowColumn>
-        <TableRowColumn>{entry.origin}</TableRowColumn>
-        <TableRowColumn>{entry.translation}</TableRowColumn>
-      </TableRow>
-    ));
+    return entries.map((entry, index) => {
+      const { origin, translation, isEditing } = entry;
+      return (
+        <TableRow key={index}>
+          <TableRowColumn>
+            {isEditing
+              ? <TextField onChange={this.onEditOriginInputChanged(index)} defaultValue={origin} />
+              : <Paper style={{ padding: '5px' }} zDepth={1}>{origin}</Paper>
+            }
+          </TableRowColumn>
+          <TableRowColumn>
+            {isEditing
+              ? <TextField onChange={this.onEditTranslationInputChanged(index)} defaultValue={translation} />
+              : <Paper style={{ padding: '5px' }} zDepth={1}>{translation}</Paper>
+            }
+          </TableRowColumn>
+          <TableRowColumn>
+            <FlatButton icon={isEditing ? <ActionDoneIcon /> : <EditorModeEditIcon />}
+                        onClick={this.onEditButtonClick(index)} />
+            <FlatButton icon={<ActionDeleteIcon />}
+                        onClick={this.onRemoveButtonClick(index)} />
+          </TableRowColumn>
+        </TableRow>
+      );
+    });
   };
 
 
   render() {
     const { history } = this.props;
-    const { entries } = this.state;
     const style = {
       margin: 12,
     };
@@ -81,24 +184,22 @@ class Admin extends PureComponent {
           history.back()
         }} />
 
-        <Table>
-          <TableHeader enableSelectAll>
+        <Table selectable={false}>
+          <TableHeader displaySelectAll={false}>
             <TableRow>
               <TableHeaderColumn>Origin</TableHeaderColumn>
               <TableHeaderColumn>Translation</TableHeaderColumn>
               <TableHeaderColumn> </TableHeaderColumn>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody displayRowCheckbox={false}>
             {this.renderEntries()}
             <TableRow>
-              <TableRowColumn>{entries.length}</TableRowColumn>
               <TableRowColumn>
-                <TextField hintText="Enter new origin" ref={this.originRef} onChange={this.onOriginInputChanged} />
+                <TextField hintText="Enter new origin" ref={this.originRef} onChange={this.onAddOriginInputChanged} />
               </TableRowColumn>
               <TableRowColumn>
-                <TextField hintText="Enter relevant translation" ref={this.translationRef}
-                           onChange={this.onTranslationInputChanged} />
+                <TextField hintText="Enter relevant translation" onChange={this.onAddTranslationInputChanged} />
               </TableRowColumn>
             </TableRow>
           </TableBody>
