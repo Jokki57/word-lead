@@ -21,24 +21,18 @@ class Learner extends PureComponent {
   }
 
   componentDidMount() {
-    const processEntries = (entries) => {
-      const stateEnties = [];
-      if (Array.isArray(entries)) {
-        entries.forEach(({ origin, translation }) => {
-          stateEnties.push({
-            isEditing: false,
-            origin,
-            translation,
-          })
-        })
-      }
-      this.setState({ entries: stateEnties });
-    };
     const ent = store.getValue('entries');
     if (!ent) {
-      loadEntries().then(processEntries);
+
     } else {
-      processEntries(ent);
+      this.processEntries(ent);
+    }
+  }
+
+  componentDidUpdate({ user: prevUser }) {
+    const { user } = this.props;
+    if (user && user !== prevUser) {
+      loadEntries().then(this.processEntries);
     }
   }
 
@@ -59,6 +53,20 @@ class Learner extends PureComponent {
       this.processClick();
     }
 
+  };
+
+  processEntries = (entries) => {
+    const stateEnties = [];
+    if (Array.isArray(entries)) {
+      entries.forEach(({ origin, translation }) => {
+        stateEnties.push({
+          isEditing: false,
+          origin,
+          translation,
+        })
+      })
+    }
+    this.setState({ entries: stateEnties });
   };
 
   processClick = () => {
@@ -89,19 +97,19 @@ class Learner extends PureComponent {
         case 'both':
           rendered = (
             <React.Fragment>
-              <Paper style={style}>{entry.origin}</Paper>
-              <Paper style={style}>{entry.translation}</Paper>
+              <Paper style={style} onClick={this.onClick}>{entry.origin}</Paper>
+              <Paper style={style} onClick={this.onClick}>{entry.translation}</Paper>
             </React.Fragment>
           );
           break;
         case 'origin':
           rendered = (
-            <Paper style={style}>{entry.origin}</Paper>
+            <Paper style={style} onClick={this.onClick}>{entry.origin}</Paper>
           );
           break;
         case 'translation':
           rendered = (
-            <Paper style={style}>{entry.translation}</Paper>
+            <Paper style={style} onClick={this.onClick}>{entry.translation}</Paper>
           );
           break;
         default:
@@ -114,6 +122,7 @@ class Learner extends PureComponent {
   };
 
   render() {
+    const { history } = this.props;
     const styles = {
       radio: {
         margin: 5,
@@ -128,6 +137,9 @@ class Learner extends PureComponent {
     };
     return (
       <div onClick={this.onClick} style={{ height: '100%', width: '100%', position: 'absolute' }}>
+        <RaisedButton fullWidth={false} style={styles.checkbox} label="To Main" onClick={() => {
+          history.push('/')
+        }} />
         <RadioButtonGroup name="name" onChange={this.onTypeChanged} defaultSelected="both">
           <RadioButton
             value="both"

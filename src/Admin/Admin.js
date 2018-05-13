@@ -32,32 +32,20 @@ class Admin extends PureComponent {
   }
 
   componentDidMount() {
-    const processEntries = (entries) => {
-      const stateEnties = [];
-      if (Array.isArray(entries)) {
-        entries.forEach(({ origin, translation }) => {
-          stateEnties.push({
-            isEditing: false,
-            origin,
-            translation,
-          })
-        })
-      }
-      this.setState({ entries: stateEnties });
-    };
+
     const ent = store.getValue('entries');
     if (!ent) {
-      loadEntries().then(processEntries);
+
     } else {
-      processEntries(ent);
+      this.processEntries(ent);
     }
   }
 
-  componentDidUpdate(prevProps, { entries: prevEntries }) {
-    // const { entries } = this.state;
-    // if (!_.isEqual(prevEntries, entries)) {
-    //   saveEntries(entries);
-    // }
+  componentDidUpdate({ user: prevUser }) {
+    const { user } = this.props;
+    if (user && user !== prevUser) {
+      loadEntries().then(this.processEntries);
+    }
   }
 
   onEditButtonClick = (index) => () => {
@@ -72,6 +60,12 @@ class Admin extends PureComponent {
       if (this.tempEditingValues[index].translation) {
         entries[index].translation = this.tempEditingValues[index].translation;
       }
+    } else {
+      if (!this.tempEditingValues[index]) {
+        this.tempEditingValues[index] = {};
+      }
+      this.tempEditingValues[index].origin = entries[index].origin;
+      this.tempEditingValues[index].translation = entries[index].translation;
     }
 
     this.setState({
@@ -95,11 +89,9 @@ class Admin extends PureComponent {
   };
 
   onAddOriginInputChanged = (event, newValue) => {
-    console.log(newValue);
     this.originValueAdd = newValue;
   };
   onAddTranslationInputChanged = (event, newValue) => {
-    console.log(newValue);
     this.translationValueAdd = newValue;
   };
 
@@ -129,6 +121,20 @@ class Admin extends PureComponent {
     }, () => {
       this.save();
     });
+  };
+
+  processEntries = (entries) => {
+    const stateEnties = [];
+    if (Array.isArray(entries)) {
+      entries.forEach(({ origin, translation }) => {
+        stateEnties.push({
+          isEditing: false,
+          origin,
+          translation,
+        })
+      })
+    }
+    this.setState({ entries: stateEnties });
   };
 
   save = () => {
@@ -171,7 +177,6 @@ class Admin extends PureComponent {
 
 
   render() {
-    const { history } = this.props;
     const style = {
       margin: 12,
     };
@@ -179,9 +184,6 @@ class Admin extends PureComponent {
       <div>
         <RaisedButton style={style} label="Save" onClick={() => {
           // TODO: implement
-        }} />
-        <RaisedButton fullWidth={false} style={style} label="Back" onClick={() => {
-          history.back()
         }} />
 
         <Table selectable={false}>

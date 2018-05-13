@@ -1,6 +1,7 @@
 import React, { PureComponent } from 'react';
 import firebase from 'firebase';
 import firebaseui from 'firebaseui';
+import styles from './Auth.css';
 
 
 export default class Auth extends PureComponent {
@@ -21,7 +22,7 @@ export default class Auth extends PureComponent {
 
   render() {
     return (
-      <div id="auth-container" />
+      <div className={styles.Auth} id="auth-container" />
 
       // {/*<Fragment>*/}
       //   {/*<TextField*/}
